@@ -1,32 +1,25 @@
+from flask import Flask, jsonify
 import requests
 from bs4 import BeautifulSoup
-import time
+
+app = Flask(__name__)
 
 def get_coin_desk_headlines():
-    """
-    Scrape headlines from the CoinDesk homepage with multiple class selectors.
-    """
     url = "https://www.coindesk.com/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-
     try:
-        # Fetch the homepage
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-
-        # Parse the HTML content
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Define target headline classes
         headline_classes = [
-            "font-Noto_Sans text-2xl font-bold",  # Main page large headlines
-            "font-Noto_Sans text-base font-bold xl:text-xl",  # SSV DAO headline
-            "font-Noto_Sans text-sm font-semibold lg:text-base lg:font-bold"  # Ripple's CEO headline
+            "font-Noto_Sans text-2xl font-bold",
+            "font-Noto_Sans text-base font-bold xl:text-xl",
+            "font-Noto_Sans text-sm font-semibold lg:text-base lg:font-bold"
         ]
 
-        # Extract headlines
         headlines = []
         for cls in headline_classes:
             for article in soup.find_all("h3", class_=cls):
@@ -35,36 +28,24 @@ def get_coin_desk_headlines():
                     headlines.append(headline)
 
         return headlines
-
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching homepage: {e}")
-        return []
-
+        return [f"Error: {e}"]
 
 def get_latest_crypto_news_headlines():
-    """
-    Scrape headlines from the 'Latest Crypto News' page.
-    """
     url = "https://www.coindesk.com/latest-crypto-news"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-
     try:
-        # Fetch the Latest Crypto News page
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-
-        # Parse the HTML content
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Define target headline class for Latest Crypto News
         headline_class = (
             "font-Noto_Sans text-base font-bold lg:text-xl lg:font-semibold leading-6 "
             "lg:leading-[1.875rem] tracking-[0.00938rem]"
         )
 
-        # Extract headlines
         headlines = []
         for article in soup.find_all("h3", class_=headline_class):
             headline = article.get_text(strip=True)
@@ -72,41 +53,19 @@ def get_latest_crypto_news_headlines():
                 headlines.append(headline)
 
         return headlines
-
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching 'Latest Crypto News' page: {e}")
-        return []
+        return [f"Error: {e}"]
 
+@app.route("/")
+def home():
+    return "Crypto Scraper API is running!"
 
-def display_headlines():
-    """
-    Fetch and display headlines from both pages.
-    """
-    print("\nFetching headlines from CoinDesk homepage...")
-    homepage_headlines = get_coin_desk_headlines()
-    if homepage_headlines:
-        print("\nCoinDesk Homepage Headlines:")
-        for idx, headline in enumerate(homepage_headlines, 1):
-            print(f"{idx}. {headline}")
-    else:
-        print("No headlines found on the homepage.")
-
-    print("\nFetching headlines from 'Latest Crypto News' page...")
-    crypto_news_headlines = get_latest_crypto_news_headlines()
-    if crypto_news_headlines:
-        print("\nLatest Crypto News Headlines:")
-        for idx, headline in enumerate(crypto_news_headlines, 1):
-            print(f"{idx}. {headline}")
-    else:
-        print("No headlines found on the 'Latest Crypto News' page.")
-
+@app.route("/headlines")
+def get_headlines():
+    return jsonify({
+        "homepage_headlines": get_coin_desk_headlines(),
+        "crypto_news_headlines": get_latest_crypto_news_headlines()
+    })
 
 if __name__ == "__main__":
-    print("Starting CoinDesk headline tracker...")
-    try:
-        while True:
-            display_headlines()
-            print("\nWaiting 10 minutes for the next update...")
-            time.sleep(600)  # Wait 10 minutes (600 seconds)
-    except KeyboardInterrupt:
-        print("\nTracker stopped.")
+    app.run(host="0.0.0.0", port=5000)
